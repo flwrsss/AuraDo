@@ -24,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const tabLabels: Record<MainTab, string> = {
     tasks: isDark ? 'TODAY' : 'TASKS',
+    calendar: 'CALENDAR',
     workouts: 'WORKOUTS',
     analytics: isDark ? 'STATS' : 'ANALYTICS',
     profile: 'PROFILE',

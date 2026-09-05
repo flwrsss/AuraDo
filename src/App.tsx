@@ -9,6 +9,7 @@ import {
   PushNotificationPayload,
   WorkoutType,
   Intensity,
+  CompletedWorkoutLog,
 } from './types';
 import { StorageService } from './services/storage';
 import { NotificationService } from './services/notifications';
@@ -18,6 +19,7 @@ import { TasksScreen } from './components/TasksScreen';
 import { WorkoutsScreen } from './components/WorkoutsScreen';
 import { AnalyticsScreen } from './components/AnalyticsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
+import { CalendarScreen } from './components/CalendarScreen';
 import { QuickCreateModal } from './components/QuickCreateModal';
 import { SupportChatModal } from './components/SupportChatModal';
 import { AppleAuthModal } from './components/AppleAuthModal';
@@ -29,7 +31,17 @@ export default function App() {
   // Persistent States
   const [profile, setProfile] = useState<UserProfile>(() => StorageService.getProfile());
   const [tasks, setTasks] = useState<TaskItem[]>(() => StorageService.getTasks());
-  const [workout, setWorkout] = useState<WorkoutSession>(() => StorageService.getWorkout());
+  const [workoutsList, setWorkoutsList] = useState<WorkoutSession[]>(() =>
+    StorageService.getWorkoutsList()
+  );
+  const [workoutHistory, setWorkoutHistory] = useState<CompletedWorkoutLog[]>(() =>
+    StorageService.getWorkoutHistory()
+  );
+  const [workout, setWorkout] = useState<WorkoutSession>(() => {
+    const list = StorageService.getWorkoutsList();
+    const pinned = list.find(w => w.isPinned);
+    return pinned || StorageService.getWorkout();
+  });
   const [energyStats, setEnergyStats] = useState<DailyEnergyStats[]>(() =>
     StorageService.getEnergyStats()
   );
@@ -149,11 +161,164 @@ export default function App() {
     trackAnalyticsEvent('task_created', { title, category });
   };
 
+  // Toggle Pin Task
+  const handleTogglePinTask = (taskId: string) => {
+    const updated = tasks.map(t => (t.id === taskId ? { ...t, isPinned: !t.isPinned } : t));
+    setTasks(updated);
+    StorageService.saveTasks(updated);
+    const target = updated.find(t => t.id === taskId);
+    setActivePush({
+      id: 'pin-t-' + Date.now(),
+      title: target?.isPinned ? 'Задача закреплена' : 'Задача откреплена',
+      body: `«${target?.title}» ${target?.isPinned ? 'закреплена вверху как основная.' : 'снята с закрепления.'}`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'task',
+      read: false,
+    });
+  };
+
+  // Delete Task
+  const handleDeleteTask = (taskId: string) => {
+    const target = tasks.find(t => t.id === taskId);
+    const updated = tasks.filter(t => t.id !== taskId);
+    setTasks(updated);
+    StorageService.saveTasks(updated);
+    setActivePush({
+      id: 'del-t-' + Date.now(),
+      title: 'Задача удалена',
+      body: `«${target?.title || ''}» удалена из списка задач.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'task',
+      read: false,
+    });
+  };
+
   // Handle Update Workout
   const handleUpdateWorkout = (updated: WorkoutSession) => {
     setWorkout(updated);
     StorageService.saveWorkout(updated);
+    // Also update in list
+    const updatedList = workoutsList.map(w => (w.id === updated.id ? updated : w));
+    setWorkoutsList(updatedList);
+    StorageService.saveWorkoutsList(updatedList);
     trackAnalyticsEvent('workout_progress_updated', { title: updated.title });
+  };
+
+  // Select Active Workout & Pin
+  const handleSelectActiveWorkout = (selected: WorkoutSession) => {
+    const updatedList = workoutsList.map(w => ({
+      ...w,
+      isPinned: w.id === selected.id,
+    }));
+    setWorkoutsList(updatedList);
+    StorageService.saveWorkoutsList(updatedList);
+
+    const pinnedWorkout = { ...selected, isPinned: true };
+    setWorkout(pinnedWorkout);
+    StorageService.saveWorkout(pinnedWorkout);
+
+    setActivePush({
+      id: 'pin-w-' + Date.now(),
+      title: 'Основная тренировка выбрана',
+      body: `«${selected.title}» назначена как основная на сегодня.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'workout',
+      read: false,
+    });
+  };
+
+  // Add Custom Workout
+  const handleAddCustomWorkout = (newWorkout: WorkoutSession) => {
+    const updatedList = [newWorkout, ...workoutsList];
+    setWorkoutsList(updatedList);
+    StorageService.saveWorkoutsList(updatedList);
+
+    if (newWorkout.isPinned) {
+      setWorkout(newWorkout);
+      StorageService.saveWorkout(newWorkout);
+    }
+
+    setActivePush({
+      id: 'add-w-' + Date.now(),
+      title: 'План тренировки сохранен',
+      body: `«${newWorkout.title}» добавлена в ваши тренировки.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'workout',
+      read: false,
+    });
+  };
+
+  // Delete Workout
+  const handleDeleteWorkout = (workoutId: string) => {
+    const target = workoutsList.find(w => w.id === workoutId);
+    const updatedList = workoutsList.filter(w => w.id !== workoutId);
+    setWorkoutsList(updatedList);
+    StorageService.saveWorkoutsList(updatedList);
+
+    if (workout.id === workoutId && updatedList.length > 0) {
+      const fallback = updatedList[0];
+      setWorkout(fallback);
+      StorageService.saveWorkout(fallback);
+    }
+
+    setActivePush({
+      id: 'del-w-' + Date.now(),
+      title: 'Тренировка удалена',
+      body: `«${target?.title || ''}» удалена.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'workout',
+      read: false,
+    });
+  };
+
+  // Complete Workout & Record in History
+  const handleCompleteWorkout = (summary: {
+    workout: WorkoutSession;
+    caloriesBurned: number;
+    durationMinutes: number;
+  }) => {
+    handleAddCalories(summary.caloriesBurned);
+
+    const log: CompletedWorkoutLog = {
+      id: 'hist-' + Date.now(),
+      title: summary.workout.title,
+      type: summary.workout.type,
+      muscleGroup: summary.workout.muscleGroup,
+      completedAt: 'Сегодня, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now(),
+      durationMinutes: summary.durationMinutes,
+      caloriesBurned: summary.caloriesBurned,
+      exercisesCount: summary.workout.exercises.length,
+      exercisesSummary: summary.workout.exercises.map(
+        e => `${e.name} (${e.completedSets}/${e.sets})`
+      ),
+    };
+
+    const updatedHistory = [log, ...workoutHistory];
+    setWorkoutHistory(updatedHistory);
+    StorageService.saveWorkoutHistory(updatedHistory);
+
+    const completedSession: WorkoutSession = {
+      ...summary.workout,
+      status: 'completed',
+    };
+    handleUpdateWorkout(completedSession);
+
+    const updatedProfile: UserProfile = {
+      ...profile,
+      totalCaloriesBurned: (profile.totalCaloriesBurned || 14200) + summary.caloriesBurned,
+      completionRate: Math.min(100, (profile.completionRate || 88) + 1),
+    };
+    handleUpdateProfile(updatedProfile);
+
+    setActivePush({
+      id: 'finish-w-' + Date.now(),
+      title: 'Тренировка завершена! 🔥',
+      body: `Сожжено ${summary.caloriesBurned} ккал за ${summary.durationMinutes} мин. Сохранено в истории.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'workout',
+      read: false,
+    });
   };
 
   // Handle Add Calories to today's burn
@@ -184,6 +349,32 @@ export default function App() {
       theme: updated.theme,
       language: updated.language,
       bioSync: updated.bioRhythmSyncActive,
+    });
+  };
+
+  // Handle complete data reset (clean slate requested by user)
+  const handleResetAllData = () => {
+    StorageService.clearAllUserData();
+    setTasks([]);
+    setWorkoutsList([]);
+    setWorkoutHistory([]);
+    setWorkout({
+      id: '',
+      title: '',
+      type: 'Гибридная',
+      durationMinutes: 45,
+      caloriesEstimate: 350,
+      muscleGroup: 'Все тело',
+      image: '',
+      exercises: [],
+    });
+    setTodayCalories(0);
+    setActivePush({
+      id: 'reset-' + Date.now(),
+      title: 'Данные очищены',
+      body: 'Приложение сброшено до чистого состояния и готово к работе.',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: 'system',
     });
   };
 
@@ -306,10 +497,29 @@ export default function App() {
               profile={profile}
               onToggleTask={handleToggleTask}
               onAddTask={handleAddTask}
+              onTogglePinTask={handleTogglePinTask}
+              onDeleteTask={handleDeleteTask}
               onGoToWorkout={() => {
                 setActiveTab('workouts');
                 trackAnalyticsEvent('navigation_tab_changed', { tab: 'workouts' });
               }}
+              onGoToCalendar={() => {
+                setActiveTab('calendar');
+                trackAnalyticsEvent('navigation_tab_changed', { tab: 'calendar' });
+              }}
+            />
+          )}
+
+          {activeTab === 'calendar' && (
+            <CalendarScreen
+              key="calendar"
+              tasks={tasks}
+              workoutsList={workoutsList}
+              profile={profile}
+              onAddTask={handleAddTask}
+              onToggleTask={handleToggleTask}
+              onDeleteTask={handleDeleteTask}
+              onSelectActiveWorkout={handleSelectActiveWorkout}
             />
           )}
 
@@ -317,8 +527,14 @@ export default function App() {
             <WorkoutsScreen
               key="workouts"
               workout={workout}
+              workoutsList={workoutsList}
+              workoutHistory={workoutHistory}
               profile={profile}
               onUpdateWorkout={handleUpdateWorkout}
+              onSelectActiveWorkout={handleSelectActiveWorkout}
+              onAddCustomWorkout={handleAddCustomWorkout}
+              onDeleteWorkout={handleDeleteWorkout}
+              onCompleteWorkout={handleCompleteWorkout}
               onAddCalories={handleAddCalories}
               todayCalories={todayCalories}
               targetCalories={targetCalories}
@@ -344,6 +560,7 @@ export default function App() {
               onOpenSupport={() => setIsSupportOpen(true)}
               onOpenBroadcast={() => setIsBroadcastOpen(true)}
               onAppleSignIn={() => setIsAppleAuthOpen(true)}
+              onResetAllData={handleResetAllData}
             />
           )}
         </AnimatePresence>

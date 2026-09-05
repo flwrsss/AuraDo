@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { useTranslation } from '../translations';
+import { EditProfileModal } from './EditProfileModal';
 import confetti from 'canvas-confetti';
 
 interface ProfileScreenProps {
@@ -11,6 +12,7 @@ interface ProfileScreenProps {
   onOpenSupport: () => void;
   onOpenBroadcast: () => void;
   onAppleSignIn: () => void;
+  onResetAllData: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -20,12 +22,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenSupport,
   onOpenBroadcast,
   onAppleSignIn,
+  onResetAllData,
 }) => {
   const { t } = useTranslation(profile.language);
   const isDark = profile.theme === 'dark';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,7 +130,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               >
                 {profile.name}
               </h2>
-              <p className="text-xs text-zinc-400 font-medium">{profile.handle}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-xs text-zinc-400 font-medium">{profile.handle}</p>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="px-2 py-0.5 rounded-md bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[12px]">edit</span>
+                  <span>Изменить ник</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -641,6 +655,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       <div className="text-center pt-2 pb-1 text-[11px] text-zinc-500">
         <p>{t.appBuildVersion}</p>
       </div>
+
+      {/* Edit Profile & Nickname Modal */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        profile={profile}
+        theme={profile.theme}
+        onSaveProfile={onUpdateProfile}
+        onResetAllData={onResetAllData}
+      />
     </motion.div>
   );
 };

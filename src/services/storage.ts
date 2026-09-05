@@ -1,35 +1,49 @@
-import { TaskItem, WorkoutSession, UserProfile, DailyEnergyStats, PushNotificationPayload } from '../types';
+import {
+  TaskItem,
+  WorkoutSession,
+  UserProfile,
+  DailyEnergyStats,
+  PushNotificationPayload,
+  CompletedWorkoutLog,
+  WorkoutPreset,
+} from '../types';
 
 const STORAGE_KEYS = {
-  PROFILE: 'aurado_user_profile_v1',
-  TASKS: 'aurado_tasks_v1',
-  WORKOUT: 'aurado_workout_v1',
-  ENERGY: 'aurado_energy_v1',
-  NOTIFICATIONS: 'aurado_notifications_v1',
-  OFFLINE_QUEUE: 'aurado_sync_queue_v1',
+  PROFILE: 'aurado_user_profile_v3',
+  TASKS: 'aurado_tasks_v3',
+  WORKOUT: 'aurado_workout_v3',
+  WORKOUTS_LIST: 'aurado_workouts_list_v4',
+  WORKOUT_HISTORY: 'aurado_workout_history_v4',
+  ENERGY: 'aurado_energy_v3',
+  NOTIFICATIONS: 'aurado_notifications_v3',
+  OFFLINE_QUEUE: 'aurado_sync_queue_v3',
 };
 
-// Initial User matching the UI screenshot exactly
+// Initial User Profile with customizable fields
 export const initialProfile: UserProfile = {
-  name: 'Елена Ростова',
-  handle: '@elena_aura',
-  email: 'elena.rostova@aura.do',
-  avatarUrl: 'https://lh3.googleusercontent.com/aida/AEtjO1X9-bfTBRby8_asgJ-Jq46iaVl5HZrIMKtThwfD62DCmKEGHP41DmINFW3n-X-iMOtLPzRPh-csVyJ2qVnw1BY-t9nc_3fyygrRY7Ryi7XGV4lUEiZ6Po8a8QhLH-adidvxJLaeolUeQACl0bRbbcH-OyT8aGs9_MMZHgHbRIH9qYGqHJpU5-kFzkFc_5pgGoHvK9q9snWsUTqleqq41yRpSmVoIipxC5zxS0U5XenXSCGojReT6ej-sdpQ',
+  name: 'Пользователь',
+  handle: '@username',
+  email: 'user@aura.do',
+  avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80',
+  bio: 'Фокус на здоровье, дисциплину и спорт',
+  weightKg: 70,
+  heightCm: 175,
+  dailyCalorieTarget: 600,
   isPro: true,
-  focusDaysStreak: 14,
-  totalCaloriesBurned: 18450,
-  completionRate: 92,
+  focusDaysStreak: 0,
+  totalCaloriesBurned: 0,
+  completionRate: 0,
   bioRhythmSyncActive: true,
-  appleHealthSynced: true,
-  appleWatchConnected: true,
-  twoFactorEnabled: true,
+  appleHealthSynced: false,
+  appleWatchConnected: false,
+  twoFactorEnabled: false,
   language: 'ru',
-  theme: 'dark', // default dark, user can toggle to light pearlescent
+  theme: 'dark', // default dark
   deliveryStyle: 'soft',
   quietHours: {
-    start: '22:30',
-    end: '07:30',
-    durationLabel: '9ч отдыха',
+    start: '23:00',
+    end: '07:00',
+    durationLabel: '8ч отдыха',
   },
   notifications: {
     workouts: true,
@@ -39,49 +53,21 @@ export const initialProfile: UserProfile = {
   },
 };
 
-export const initialTasks: TaskItem[] = [
-  {
-    id: 'task-1',
-    title: 'Принять витамины и омега-3',
-    time: '08:30',
-    category: 'health',
-    completed: true,
-  },
-  {
-    id: 'task-2',
-    title: 'Утренняя разминка 15 мин',
-    time: '09:00',
-    category: 'fitness',
-    completed: true,
-    calories: 95,
-  },
-  {
-    id: 'task-3',
-    title: 'Сдать отчет по спринту',
-    time: '12:00',
-    category: 'work',
-    completed: false,
-    priority: 'high',
-  },
-  {
-    id: 'task-4',
-    title: 'Силовая тренировка',
-    time: '18:30',
-    category: 'fitness',
-    completed: false,
-    calories: 420,
-    duration: '45 минут',
-    isFeaturedWorkout: true,
-  },
-  {
-    id: 'task-5',
-    title: 'Вечерняя прогулка и медитация',
-    time: '21:00',
-    category: 'recovery',
-    completed: false,
-    duration: '30 мин',
-  },
-];
+// Clean empty initial tasks - user starts with zero dummy tasks
+export const initialTasks: TaskItem[] = [];
+
+export const emptyWorkout: WorkoutSession = {
+  id: '',
+  title: '',
+  muscleGroup: '',
+  type: '',
+  caloriesEstimate: 0,
+  durationMinutes: 0,
+  exerciseCount: 0,
+  exercises: [],
+  image: '',
+  status: 'planned',
+};
 
 export const initialWorkout: WorkoutSession = {
   id: 'workout-today',
@@ -91,6 +77,8 @@ export const initialWorkout: WorkoutSession = {
   caloriesEstimate: 480,
   durationMinutes: 45,
   exerciseCount: 5,
+  isPinned: true,
+  status: 'in_progress',
   image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLMWNcjcAqLfzOaHpoaQX93C0Dn75vvbnJk7aRFpLWQasr56zwFIbxeO3blx_etrAleRriCUf9ojdxD0dYdFlYMvzQ8n_UGFR_kXJsD1MSENuBlx9xBCBMnJrJzEo4BiOsk2_ZyziQDAxrJC60kD-eyCxiPIJyni4ApkipH0gXG7D8Ff9PTJNKkY7Ll41xkevLVyc3rYoZxF6jFO28qemQyhQqm4CusOdBHQQVsvUMeh-B3tFLnKM5jQ',
   exercises: [
     {
@@ -137,14 +125,111 @@ export const initialWorkout: WorkoutSession = {
   ],
 };
 
+export const workoutPresets: WorkoutPreset[] = [
+  {
+    id: 'preset-fullbody',
+    title: 'Full Body Оптимум',
+    muscleGroup: 'Все тело',
+    type: 'Силовая',
+    intensity: 'high',
+    durationMinutes: 50,
+    caloriesEstimate: 520,
+    image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=60',
+    description: 'Комплексная проработка всех основных мышечных групп: присед, жим, тяга.',
+    exercises: [
+      { name: 'Приседания со штангой', sets: 4, reps: 10, calories: 150 },
+      { name: 'Жим штанги лежа', sets: 4, reps: 10, calories: 130 },
+      { name: 'Тяга штанги в наклоне', sets: 4, reps: 12, calories: 120 },
+      { name: 'Армейский жим стоя', sets: 3, reps: 10, calories: 70 },
+      { name: 'Планка на локтях', sets: 3, reps: 45, calories: 50 },
+    ],
+  },
+  {
+    id: 'preset-hiit-burn',
+    title: 'HIIT Жиросжигание & Драйв',
+    muscleGroup: 'Кардио & Выносливость',
+    type: 'HIIT',
+    intensity: 'high',
+    durationMinutes: 35,
+    caloriesEstimate: 450,
+    image: 'https://images.unsplash.com/photo-1434596922112-19c563067271?w=500&auto=format&fit=crop&q=60',
+    description: 'Интервальная взрывная нагрузка для максимального сжигания калорий и разгона метаболизма.',
+    exercises: [
+      { name: 'Бёрпи с прыжком', sets: 4, reps: 15, calories: 120 },
+      { name: 'Прыжки со скакалкой', sets: 4, reps: 60, calories: 110 },
+      { name: 'Альпинист (Mountain Climbers)', sets: 4, reps: 25, calories: 90 },
+      { name: 'Выпады с прыжком', sets: 3, reps: 16, calories: 80 },
+      { name: 'Динамическая планка', sets: 3, reps: 20, calories: 50 },
+    ],
+  },
+  {
+    id: 'preset-back-biceps',
+    title: 'Спина & Бицепс (Тяговый день)',
+    muscleGroup: 'Спина и Руки',
+    type: 'Силовая',
+    intensity: 'medium',
+    durationMinutes: 45,
+    caloriesEstimate: 410,
+    image: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=500&auto=format&fit=crop&q=60',
+    description: 'Формирование V-образного силуэта спины и крепких бицепсов.',
+    exercises: [
+      { name: 'Подтягивания широким хватом', sets: 4, reps: 8, calories: 120 },
+      { name: 'Тяга гантели к поясу в упоре', sets: 3, reps: 12, calories: 100 },
+      { name: 'Тяга верхнего блока за голову', sets: 3, reps: 12, calories: 80 },
+      { name: 'Подъем штанги на бицепс', sets: 3, reps: 12, calories: 65 },
+      { name: 'Молотковые сгибания с гантелями', sets: 3, reps: 12, calories: 45 },
+    ],
+  },
+  {
+    id: 'preset-legs-glutes',
+    title: 'Ягодицы & Ноги (Интенсив)',
+    muscleGroup: 'Нижняя часть тела',
+    type: 'Силовая',
+    intensity: 'high',
+    durationMinutes: 45,
+    caloriesEstimate: 490,
+    image: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=500&auto=format&fit=crop&q=60',
+    description: 'Мощный акцент на ягодичные мышцы, квадрицепсы и заднюю поверхность бедра.',
+    exercises: [
+      { name: 'Болгарские выпады с гантелями', sets: 3, reps: 12, calories: 130 },
+      { name: 'Ягодичный мостик со штангой', sets: 4, reps: 12, calories: 140 },
+      { name: 'Румынская тяга с гантелями', sets: 4, reps: 10, calories: 110 },
+      { name: 'Подъемы на носки стоя', sets: 3, reps: 20, calories: 50 },
+      { name: 'Зашагивания на тумбу', sets: 3, reps: 15, calories: 60 },
+    ],
+  },
+  {
+    id: 'preset-core-mobility',
+    title: 'Пресс, Кор & Мобильность',
+    muscleGroup: 'Кор и Растяжка',
+    type: 'Йога & Кор',
+    intensity: 'light',
+    durationMinutes: 30,
+    caloriesEstimate: 220,
+    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=500&auto=format&fit=crop&q=60',
+    description: 'Здоровая осанка, крепкий мышечный корсет и снятие напряжения со спины.',
+    exercises: [
+      { name: 'Скручивания на коврике', sets: 3, reps: 20, calories: 50 },
+      { name: 'Боковая планка с подъемом ноги', sets: 3, reps: 12, calories: 45 },
+      { name: 'Мертвый жук (Dead Bug)', sets: 3, reps: 16, calories: 40 },
+      { name: 'Поза кобры и собаки мордой вниз', sets: 3, reps: 60, calories: 45 },
+      { name: 'Глубокая растяжка подколенных сухожилий', sets: 1, reps: 120, calories: 40 },
+    ],
+  },
+];
+
+export const initialWorkoutsList: WorkoutSession[] = [];
+
+export const initialWorkoutHistory: CompletedWorkoutLog[] = [];
+
 export const initialEnergyStats: DailyEnergyStats[] = [
-  { day: 'Пн', dateStr: '23.10', calories: 640, target: 700, metGoal: false },
-  { day: 'Вт', dateStr: '24.10', calories: 780, target: 700, metGoal: true },
-  { day: 'Ср', dateStr: '25.10', calories: 520, target: 700, metGoal: false },
-  { day: 'Чт', dateStr: '26.10', calories: 920, target: 700, metGoal: true },
-  { day: 'Пт', dateStr: '27.10', calories: 710, target: 700, metGoal: true },
-  { day: 'Сб', dateStr: '28.10', calories: 750, target: 700, metGoal: true },
-  { day: 'Вс', dateStr: '29.10', calories: 320, target: 700, metGoal: false },
+  { day: 'Пн', dateStr: 'Пн', calories: 0, target: 600, metGoal: false },
+  { day: 'Вт', dateStr: 'Вт', calories: 0, target: 600, metGoal: false },
+  { day: 'Ср', dateStr: 'Ср', calories: 0, target: 600, metGoal: false },
+  { day: 'Чт', dateStr: 'Чт', calories: 0, target: 600, metGoal: false },
+  { day: 'Пт', dateStr: 'Пт', calories: 0, target: 600, metGoal: false },
+  { day: 'Сб', dateStr: 'Сб', calories: 0, target: 600, metGoal: false },
+  { day: 'Вс', dateStr: 'Вс', calories: 0, target: 600, metGoal: false },
 ];
 
 export const initialNotifications: PushNotificationPayload[] = [
@@ -229,6 +314,56 @@ export const StorageService = {
     }
   },
 
+  getWorkoutsList(): WorkoutSession[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.WORKOUTS_LIST);
+      return data ? JSON.parse(data) : initialWorkoutsList;
+    } catch {
+      return initialWorkoutsList;
+    }
+  },
+
+  saveWorkoutsList(workouts: WorkoutSession[]): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.WORKOUTS_LIST, JSON.stringify(workouts));
+      this.recordSyncAction('update_workouts_list', workouts);
+    } catch (e) {
+      console.warn('Storage saveWorkoutsList error:', e);
+    }
+  },
+
+  getWorkoutHistory(): CompletedWorkoutLog[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.WORKOUT_HISTORY);
+      return data ? JSON.parse(data) : initialWorkoutHistory;
+    } catch {
+      return initialWorkoutHistory;
+    }
+  },
+
+  saveWorkoutHistory(history: CompletedWorkoutLog[]): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify(history));
+      this.recordSyncAction('update_workout_history', history);
+    } catch (e) {
+      console.warn('Storage saveWorkoutHistory error:', e);
+    }
+  },
+
+  addWorkoutToHistory(log: CompletedWorkoutLog): void {
+    try {
+      const current = this.getWorkoutHistory();
+      const updated = [log, ...current];
+      this.saveWorkoutHistory(updated);
+    } catch (e) {
+      console.warn('Storage addWorkoutToHistory error:', e);
+    }
+  },
+
+  getPresets(): WorkoutPreset[] {
+    return workoutPresets;
+  },
+
   getEnergyStats(): DailyEnergyStats[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ENERGY);
@@ -261,6 +396,30 @@ export const StorageService = {
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifs));
     } catch (e) {
       console.warn('Storage saveNotifications error:', e);
+    }
+  },
+
+  // Clear data methods for clean slate usage
+  clearAllUserData(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.TASKS);
+      localStorage.removeItem(STORAGE_KEYS.WORKOUT);
+      localStorage.removeItem(STORAGE_KEYS.WORKOUTS_LIST);
+      localStorage.removeItem(STORAGE_KEYS.WORKOUT_HISTORY);
+      localStorage.removeItem(STORAGE_KEYS.PROFILE);
+      localStorage.removeItem(STORAGE_KEYS.ENERGY);
+      localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+      localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
+    } catch (e) {
+      console.warn('Storage clearAllUserData error:', e);
+    }
+  },
+
+  clearTasks(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.TASKS);
+    } catch (e) {
+      console.warn('Storage clearTasks error:', e);
     }
   },
 

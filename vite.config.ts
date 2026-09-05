@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Relative base path for GitHub Pages compatibility
     base: './',
     plugins: [react(), tailwindcss()],
     resolve: {

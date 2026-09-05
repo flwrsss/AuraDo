@@ -1,7 +1,7 @@
 export type ThemeMode = 'dark' | 'light';
 export type Language = 'ru' | 'en';
 export type DeliveryStyle = 'soft' | 'haptic' | 'banner';
-export type MainTab = 'tasks' | 'workouts' | 'analytics' | 'profile';
+export type MainTab = 'tasks' | 'calendar' | 'workouts' | 'analytics' | 'profile';
 export type WorkoutType = 'strength' | 'cardio' | 'hiit' | 'yoga' | 'swim';
 export type Intensity = 'light' | 'medium' | 'high';
 
@@ -15,6 +15,8 @@ export interface TaskItem {
   calories?: number;
   duration?: string;
   isFeaturedWorkout?: boolean;
+  isPinned?: boolean;
+  date?: string; // YYYY-MM-DD
 }
 
 export interface ExerciseItem {
@@ -25,6 +27,7 @@ export interface ExerciseItem {
   completedSets: number;
   calories: number;
   active?: boolean;
+  weightKg?: number;
 }
 
 export interface WorkoutSession {
@@ -37,6 +40,41 @@ export interface WorkoutSession {
   exerciseCount: number;
   exercises: ExerciseItem[];
   image: string;
+  isPinned?: boolean;
+  createdAt?: string;
+  status?: 'planned' | 'in_progress' | 'completed';
+}
+
+export interface CompletedWorkoutLog {
+  id: string;
+  title: string;
+  type: string;
+  muscleGroup: string;
+  completedAt: string;
+  timestamp: number;
+  durationMinutes: number;
+  caloriesBurned: number;
+  exercisesCount: number;
+  exercisesSummary: string[];
+}
+
+export interface WorkoutPreset {
+  id: string;
+  title: string;
+  muscleGroup: string;
+  type: string;
+  intensity: Intensity;
+  durationMinutes: number;
+  caloriesEstimate: number;
+  image: string;
+  description: string;
+  exercises: {
+    name: string;
+    sets: number;
+    reps: number;
+    calories: number;
+    weightKg?: number;
+  }[];
 }
 
 export interface DailyEnergyStats {
@@ -52,6 +90,10 @@ export interface UserProfile {
   handle: string;
   email: string;
   avatarUrl: string;
+  bio?: string;
+  weightKg?: number;
+  heightCm?: number;
+  dailyCalorieTarget?: number;
   isPro: boolean;
   focusDaysStreak: number;
   totalCaloriesBurned: number;

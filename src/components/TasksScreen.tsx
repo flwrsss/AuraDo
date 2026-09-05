@@ -3,13 +3,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TaskItem, UserProfile } from '../types';
 import { useTranslation } from '../translations';
 import confetti from 'canvas-confetti';
+import { SwipeableRow } from './SwipeableRow';
 
 interface TasksScreenProps {
   tasks: TaskItem[];
   profile: UserProfile;
   onToggleTask: (taskId: string) => void;
   onAddTask: (title: string, category: 'health' | 'fitness' | 'work' | 'recovery') => void;
+  onTogglePinTask: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
   onGoToWorkout: () => void;
+  onGoToCalendar?: () => void;
 }
 
 export const TasksScreen: React.FC<TasksScreenProps> = ({
@@ -17,7 +21,10 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
   profile,
   onToggleTask,
   onAddTask,
+  onTogglePinTask,
+  onDeleteTask,
   onGoToWorkout,
+  onGoToCalendar,
 }) => {
   const { t, format } = useTranslation(profile.language);
   const isDark = profile.theme === 'dark';
@@ -27,15 +34,21 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [isListening, setIsListening] = useState(false);
 
-  // Filter tasks
-  const filteredTasks = tasks.filter(task => {
-    if (activeFilter === 'all') return true;
-    if (activeFilter === 'morning') return task.time <= '10:00';
-    if (activeFilter === 'work') return task.category === 'work';
-    if (activeFilter === 'health') return task.category === 'health' || task.category === 'recovery';
-    if (activeFilter === 'fitness') return task.category === 'fitness';
-    return true;
-  });
+  // Filter and sort tasks: pinned tasks at the top
+  const filteredTasks = tasks
+    .filter(task => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'morning') return task.time <= '10:00';
+      if (activeFilter === 'work') return task.category === 'work';
+      if (activeFilter === 'health') return task.category === 'health' || task.category === 'recovery';
+      if (activeFilter === 'fitness') return task.category === 'fitness';
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return 0;
+    });
 
   const totalCount = tasks.length;
   const completedCount = tasks.filter(t => t.completed).length;
@@ -208,10 +221,14 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
               isDark ? 'text-zinc-500' : 'text-zinc-500'
             }`}
           >
-            {t.october2023}
+            {new Date().toLocaleDateString(profile.language === 'ru' ? 'ru-RU' : 'en-US', {
+              month: 'long',
+              year: 'numeric',
+            })}
           </span>
           <button
             type="button"
+            onClick={onGoToCalendar}
             className="flex items-center gap-0.5 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
           >
             <span>{t.calendar}</span>
@@ -285,6 +302,11 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
 
       {/* Interactive Task Stream */}
       <section className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between px-1 text-[11px] text-zinc-400">
+          <span>Свайп влево: закрепить или удалить</span>
+          <span className="material-symbols-outlined text-[15px] text-blue-400">swipe_left</span>
+        </div>
+
         <AnimatePresence mode="popLayout">
           {filteredTasks.map(task => {
             // Check if this is the featured workout banner
@@ -367,107 +389,175 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
               );
             }
 
-            // Normal Task Card
+            // Normal Task Card with SwipeableRow
             const isCompleted = task.completed;
             return (
-              <motion.div
+              <SwipeableRow
                 key={task.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className={`task-card relative flex items-start gap-3 p-3.5 rounded-xl transition-all duration-300 border ${
-                  isCompleted
-                    ? isDark
-                      ? 'bg-zinc-900/40 border-zinc-800/60 opacity-60'
-                      : 'bg-zinc-100 border-zinc-200 opacity-60'
-                    : isDark
-                    ? 'bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 shadow-sm'
-                    : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-sm'
-                }`}
+                id={task.id}
+                isPinned={task.isPinned}
+                onTogglePin={() => onTogglePinTask(task.id)}
+                onDelete={() => onDeleteTask(task.id)}
+                pinLabel="Основная"
+                unpinLabel="Открепить"
+                deleteLabel="Удалить"
+                isDark={isDark}
               >
-                {/* Urgent line accent if high priority and uncompleted */}
-                {task.priority === 'high' && !isCompleted && (
-                  <div className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-xl" />
-                )}
-
-                {/* Checkbox button */}
-                <button
-                  type="button"
-                  onClick={() => handleTaskCheck(task.id, isCompleted)}
-                  className={`shrink-0 mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center transition-all active:scale-90 border ${
-                    isCompleted
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-900/30'
+                <div
+                  className={`task-card relative flex items-start gap-3 p-3.5 rounded-xl transition-all duration-300 border ${
+                    task.isPinned
+                      ? isDark
+                        ? 'bg-zinc-900 border-amber-500/50 shadow-md shadow-amber-950/10'
+                        : 'bg-white border-amber-400 shadow-md'
+                      : isCompleted
+                      ? isDark
+                        ? 'bg-zinc-900/40 border-zinc-800/60 opacity-60'
+                        : 'bg-zinc-100 border-zinc-200 opacity-60'
                       : isDark
-                      ? 'bg-zinc-800 border-zinc-700 text-transparent hover:text-zinc-500'
-                      : 'bg-zinc-100 border-zinc-300 text-transparent hover:text-zinc-400'
+                      ? 'bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 shadow-sm'
+                      : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-sm'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[15px] font-bold">check</span>
-                </button>
+                  {/* Urgent line accent if high priority and uncompleted */}
+                  {task.priority === 'high' && !isCompleted && !task.isPinned && (
+                    <div className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-xl" />
+                  )}
 
-                {/* Task Details */}
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`text-sm truncate ${
-                        isCompleted
-                          ? 'line-through opacity-60 font-normal'
-                          : 'font-semibold text-on-surface'
-                      } ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}
-                    >
-                      {task.title}
-                    </span>
+                  {/* Pinned golden line accent */}
+                  {task.isPinned && (
+                    <div className="absolute inset-y-0 left-0 w-1 bg-amber-400 rounded-l-xl" />
+                  )}
 
-                    {task.priority === 'high' && !isCompleted && (
-                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 text-[10px] font-bold">
-                        {t.highPriority}
-                      </span>
-                    )}
-
-                    {isCompleted && (
-                      <span
-                        className={`shrink-0 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
-                          isDark
-                            ? 'bg-zinc-800 text-zinc-400'
-                            : 'bg-zinc-100 text-zinc-600'
-                        }`}
-                      >
-                        {t.completedBadge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`flex items-center gap-3 mt-1 text-xs ${
-                      isDark ? 'text-zinc-500' : 'text-zinc-500'
+                  {/* Checkbox button */}
+                  <button
+                    type="button"
+                    onClick={() => handleTaskCheck(task.id, isCompleted)}
+                    className={`shrink-0 mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center transition-all active:scale-90 border ${
+                      isCompleted
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-900/30'
+                        : isDark
+                        ? 'bg-zinc-800 border-zinc-700 text-transparent hover:text-zinc-500'
+                        : 'bg-zinc-100 border-zinc-300 text-transparent hover:text-zinc-400'
                     }`}
                   >
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">schedule</span>
-                      {task.time}
-                    </span>
+                    <span className="material-symbols-outlined text-[15px] font-bold">check</span>
+                  </button>
 
-                    {task.calories && (
-                      <span className="flex items-center gap-1 text-blue-400 font-semibold">
-                        <span className="material-symbols-outlined text-[13px]">
-                          local_fire_department
-                        </span>
-                        +{task.calories} ккал
+                  {/* Task Details */}
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`text-sm truncate ${
+                          isCompleted
+                            ? 'line-through opacity-60 font-normal'
+                            : 'font-semibold text-on-surface'
+                        } ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}
+                      >
+                        {task.title}
                       </span>
-                    )}
 
-                    {task.duration && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {task.isPinned && (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 text-[10px] font-bold flex items-center gap-0.5 border border-amber-500/30">
+                            <span className="material-symbols-outlined text-[12px]">push_pin</span>
+                            Основная
+                          </span>
+                        )}
+
+                        {task.priority === 'high' && !isCompleted && !task.isPinned && (
+                          <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 text-[10px] font-bold">
+                            {t.highPriority}
+                          </span>
+                        )}
+
+                        {isCompleted && (
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                              isDark
+                                ? 'bg-zinc-800 text-zinc-400'
+                                : 'bg-zinc-100 text-zinc-600'
+                            }`}
+                          >
+                            {t.completedBadge}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`flex items-center gap-3 mt-1 text-xs ${
+                        isDark ? 'text-zinc-500' : 'text-zinc-500'
+                      }`}
+                    >
                       <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">timer</span>
-                        {task.duration}
+                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        {task.time}
                       </span>
-                    )}
+
+                      {task.calories && (
+                        <span className="flex items-center gap-1 text-blue-400 font-semibold">
+                          <span className="material-symbols-outlined text-[13px]">
+                            local_fire_department
+                          </span>
+                          +{task.calories} ккал
+                        </span>
+                      )}
+
+                      {task.duration && (
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">timer</span>
+                          {task.duration}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </motion.div>
+              </SwipeableRow>
             );
           })}
+
+          {filteredTasks.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-6 rounded-2xl text-center border space-y-3 ${
+                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'
+              }`}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 mx-auto flex items-center justify-center">
+                <span className="material-symbols-outlined text-[26px]">task_alt</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-zinc-100 font-['Plus_Jakarta_Sans',sans-serif]">
+                  {tasks.length === 0 ? 'Список задач пуст' : 'Нет задач в этом фильтре'}
+                </h4>
+                <p className="text-xs text-zinc-400 mt-1 max-w-xs mx-auto">
+                  {tasks.length === 0
+                    ? 'Ваш день чист и свободен. Добавьте свои первые цели или тренировку через поле ниже или календарь.'
+                    : 'Переключите фильтр на «Все» или создайте новую задачу.'}
+                </p>
+              </div>
+
+              {tasks.length === 0 && (
+                <div className="flex flex-wrap justify-center gap-2 pt-1">
+                  {[
+                    { text: 'Утренняя зарядка 15 мин', cat: 'fitness' as const },
+                    { text: 'Выпить 2л воды', cat: 'health' as const },
+                    { text: 'Сфокусироваться на главном проекте', cat: 'work' as const },
+                  ].map((s, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => onAddTask(s.text, s.cat)}
+                      className="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 active:scale-95 transition-all"
+                    >
+                      + {s.text}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
         </AnimatePresence>
       </section>
 
