@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px);
+  }
+
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top, 24px), 24px);
+  }
+}
+
+/* Hide scrollbars for clean mobile-like feel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glassmorphism specular highlight */
+.glass-border-light {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.glass-border-dark {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
